@@ -1,4 +1,4 @@
-name: CI/CD Pipeline
+ name: CI/CD Pipeline
 
 on:
   push:
@@ -44,25 +44,31 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Verify Kubeconfig Access
+      - name: Prepare Kubeconfig
+        # This step fixes the "permission denied" error by copying the K3s config
+        # to the runner's default KUBECONFIG location (~/.kube/config) and
+        # setting the necessary permissions for the runner user.
         run: |
-          export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+          sudo mkdir -p ~/.kube
+          sudo cp /etc/rancher/k3s/k3s.yaml ~/.kube/config
+          sudo chown $(id -u):$(id -g) ~/.kube/config
+          sudo chmod 600 ~/.kube/config
+
+      - name: Verify Kubeconfig Access
+        # KUBECONFIG export is no longer needed since the file is in the default location
+        run: |
           kubectl cluster-info
           kubectl get nodes
 
       - name: Apply Kubernetes Manifests
         run: |
-          export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
           kubectl apply -f k8s/deployment.yml
           kubectl apply -f k8s/service.yml
 
       - name: Wait for Deployment Rollout
         run: |
-          export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
           kubectl rollout status deployment/wisecow-deployment --timeout=5m
 
       - name: Post-Deployment Verification
         run: |
-          export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
           kubectl get svc wisecow-service -o wide
-
