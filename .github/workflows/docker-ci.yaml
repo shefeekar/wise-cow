@@ -62,8 +62,8 @@ jobs:
 
       - name: Apply Kubernetes Manifests
         run: |
-          kubectl apply -f /home/shefeek/Desktop/wisecow/k8s/deployment.yml
-          kubectl apply -f /home/shefeek/Desktop/wisecow/k8s/service.yml
+          kubectl apply -f /home/shefeek/Desktop/wisecow/k8/deployment.yml
+          kubectl apply -f /home/shefeek/Desktop/wisecow/k8/service.yml
 
       - name: Wait for Deployment Rollout
         run: |
