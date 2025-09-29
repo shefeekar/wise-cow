@@ -29,3 +29,67 @@ jobs:
           context: .
           push: true
           tags: shefeekar/wisecow:latest
+
+                #***************************#
+name: CD - Deploy to K3s
+
+on:
+  push:
+    branches:
+      - master # Or whatever branch triggers your CI job
+
+jobs:
+  # --------------------------------------------------------
+  # Dependency: This job ensures the Docker image is built first.
+  # If your CI job is in a separate workflow, you would use 
+  # 'workflow_run' trigger instead of 'needs'.
+  # For simplicity, we assume your 'ci.yml' has been renamed to 'ci-cd.yml'
+  # or you run these jobs sequentially in this file.
+  # Since you provided the CI logic in your prompt, I'm assuming you
+  # want this CD job to run after the CI job you showed (which you named 'docker').
+  # --------------------------------------------------------
+  
+  deploy:
+    # IMPORTANT: Replace 'k3s-runner' with the actual label you assigned
+    # when you set up your self-hosted runner on your local PC.
+    runs-on: self-hosted
+    
+    # Needs to ensure the docker image build/push is complete before deploying
+    # Assuming your CI job is named 'docker' as in your prompt.
+    needs: docker 
+    
+    environment:
+      name: production
+      url: http://localhost:30499 # This is the expected service URL
+
+    steps:
+      - name: Checkout Repository
+        # We need the code checked out to access the k8s manifest files
+        uses: actions/checkout@v4
+
+      - name: Verify Kubeconfig Access
+        run: |
+          # This step confirms the self-hosted runner can access the cluster
+          echo "Checking cluster connectivity..."
+          kubectl cluster-info
+          kubectl get nodes 
+        # Note: K3s typically puts the kubeconfig at /etc/rancher/k3s/k3s.yaml.
+        # Ensure the user running the self-hosted runner has read access to this file.
+
+      - name: Apply Kubernetes Manifests
+        run: |
+          echo "Applying deployment and service manifests..."
+          kubectl apply -f k8s/deployment.yml
+          kubectl apply -f k8s/service.yml
+          
+      - name: Wait for Deployment Rollout
+        run: |
+          # Waits for all pods in the deployment to become ready before completing the job
+          kubectl rollout status deployment/wisecow-deployment --timeout=5m
+          
+      - name: Post-Deployment Verification
+        run: |
+          # Prints the IP and Port for confirmation
+          echo "Deployment successful. Service endpoint details:"
+          kubectl get svc wisecow-service -o wide
+
