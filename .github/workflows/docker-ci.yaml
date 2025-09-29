@@ -1,31 +1,68 @@
-name: ci
+name: CI/CD Pipeline
 
 on:
   push:
+    branches:
+      - master
 
 jobs:
   docker:
     runs-on: ubuntu-latest
     steps:
-      -
-        name: Checkout
+      - name: Checkout
         uses: actions/checkout@v4
-      -
-        name: Login to Docker Hub
+
+      - name: Login to Docker Hub
         uses: docker/login-action@v3
         with:
           username: ${{ vars.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
-      -
-        name: Set up QEMU
+
+      - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
-      -
-        name: Set up Docker Buildx
+
+      - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-      -
-        name: Build and push
+
+      - name: Build and Push
         uses: docker/build-push-action@v6
         with:
           context: .
           push: true
-          tags: shefeekar/wisecow:latest
+          tags: |
+            shefeekar/wisecow:latest
+            shefeekar/wisecow:${{ github.sha }}
+
+  deploy:
+    runs-on: self-hosted
+    needs: docker
+    environment:
+      name: production
+      url: http://localhost:30499
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Verify Kubeconfig Access
+        run: |
+          export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+          kubectl cluster-info
+          kubectl get nodes
+
+      - name: Apply Kubernetes Manifests
+        run: |
+          export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+          kubectl apply -f k8s/deployment.yml
+          kubectl apply -f k8s/service.yml
+
+      - name: Wait for Deployment Rollout
+        run: |
+          export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+          kubectl rollout status deployment/wisecow-deployment --timeout=5m
+
+      - name: Post-Deployment Verification
+        run: |
+          export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+          kubectl get svc wisecow-service -o wide
+
