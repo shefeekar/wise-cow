@@ -16,7 +16,7 @@ spec:
     spec:
       containers:
       - name: wisecow
-        image: shefeekar/wisecow:v1.0
+        image: shefeekar/wisecow:${{ github.sha }}
         imagePullPolicy: Always
         ports:
         - containerPort: 4499
