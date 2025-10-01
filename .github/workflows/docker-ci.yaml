@@ -62,6 +62,8 @@ jobs:
 
       - name: Apply Kubernetes Manifests
         run: |
+          kubectl apply -f k8/secret.yml
+          kubectl apply -f k8/nginx-configmap.yml
           kubectl apply -f k8/deployment.yml
           kubectl apply  -f k8/service.yml
 
